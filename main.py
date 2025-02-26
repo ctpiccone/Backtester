@@ -10,23 +10,15 @@ import Backtest
 import Execution
 import Strategy
 import Portfolio
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+import AlpacaData
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    # files = os.listdir(r"C:\Users\cameron.Piccone\Documents\TestData")
-    # print(files)
-    dh = Data.CSVDataHandler(r"C:\Users\cameron.Piccone\\Documents\TestData")
-    # dh.initialize()
-    # dh.set_events(queue.Queue())
-    # dh.update(dh.start_date+datetime.timedelta(days=1))
-    # print()
+    start_date = "2022-11-01"
+    dh = AlpacaData.BarsAlpacaDataHandler(["AAPL", "KR"], "m")
     portfolio = Portfolio.Portfolio(dh, 100000)
-    backtest = Backtest.Backtest(["AAPL", "KR"], 100000, 0, "2021-07-28", "2022-06-01", Execution.DummyExecutionHandler(), Strategy.MovingAverageStrategy(dh), portfolio, dh)
+    backtest = Backtest.Backtest(["AAPL", "KR"], 100000, datetime.timedelta(minutes=120), start_date, datetime.datetime.now(), Execution.DummyExecutionHandler(), Strategy.MovingAverageStrategy(dh), portfolio, dh)
     backtest.run_backtest()
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

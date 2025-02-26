@@ -41,6 +41,8 @@ class MovingAverageStrategy(Strategy):
 
     def calculate_signals(self):
         for symbol in self.bars.current_data.keys():
+            if self.bars.current_data[symbol] is None:
+                continue
             dt = self.bars.get_latest_datetime(symbol)
             long = self.bars.get_latest(symbol, self.long_window)
             short = self.bars.get_latest(symbol, self.short_window)

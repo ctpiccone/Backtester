@@ -33,9 +33,17 @@ class DummyExecutionHandler(ExecutionHandler):
                 # buying to close
                 if portfolio.get_position(signal.ticker).quantity < 0:
                     to_close = "CLOSE"
+                    # TODO update buying power
+
                 # buying to open
                 else:
                     to_close = "OPEN"
+                portfolio.events.put(Events.FillEvent(signal.ticker, data.get_latest_datetime(signal.ticker), "FAKE",
+                                                      self.calculate_quantity(portfolio, signal,
+                                                                              data.get_latest(signal.ticker)[
+                                                                                  "Adj Close"].iloc[
+                                                                                  0]), signal.direction, to_close,
+                                                      data.get_latest(signal.ticker)["Adj Close"].iloc[0], 0))
             else:
                 # selling to open
                 if portfolio.get_position(signal.ticker).quantity <= 0:
@@ -43,18 +51,22 @@ class DummyExecutionHandler(ExecutionHandler):
                 # selling to close
                 else:
                     to_close = "CLOSE"
+                    portfolio.buying_power += self.calculate_quantity(portfolio, signal,
+                                                                              data.get_latest(signal.ticker)[
+                                                                                  "Close"].iloc[0])*data.get_latest(signal.ticker)
+
                 portfolio.events.put(Events.FillEvent(signal.ticker, data.get_latest_datetime(signal.ticker), "FAKE",
                                                       self.calculate_quantity(portfolio, signal,
                                                                               data.get_latest(signal.ticker)[
-                                                                                  "Adj Close"].iloc[
+                                                                                  "Close"].iloc[
                                                                                   0]), signal.direction, to_close,
-                                                      data.get_latest(signal.ticker)["Adj Close"].iloc[0], 0))
+                                                      data.get_latest(signal.ticker)["Close"].iloc[0], 0))
         except Portfolio.PositionNotFoundException:
             portfolio.events.put(Events.FillEvent(signal.ticker, data.get_latest_datetime(signal.ticker), "FAKE",
                                                   self.calculate_quantity(portfolio, signal,
                                                                           data.get_latest(signal.ticker)[
-                                                                              "Adj Close"].iloc[0]), signal.direction,
-                                                  "OPEN", data.get_latest(signal.ticker)["Adj Close"].iloc[0], 0))
+                                                                              "Close"].iloc[0]), signal.direction,
+                                                  "OPEN", data.get_latest(signal.ticker)["Close"].iloc[0], 0))
 
     def calculate_quantity(self, portfolio: Portfolio, signal: Events.SignalEvent, price):
         if signal.direction == -1:

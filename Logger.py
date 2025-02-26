@@ -13,10 +13,10 @@ class PortfolioLogger(Logger):
 
     def __init__(self, portfolio):
         self.portfolio = portfolio
-        self.log_port = pd.DataFrame(columns=["Time", "Realized P&L", "Unrealized P&L", "Value", "Daily Return"])
+        self.log_port = pd.DataFrame(columns=["Time", "Realized P&L", "Unrealized P&L", "Value"])
 
     def log(self, time, daily_return):
-        self.log_port = pd.concat([self.log_port, pd.DataFrame({"Time":[time], "Realized P&L":[self.portfolio.realized_PL], "Unrealized P&L":[self.portfolio.unrealized_PL], "Value": [self.portfolio.value()], "Daily Return": [daily_return]})])
+        self.log_port = pd.concat([self.log_port, pd.DataFrame({"Time":[time], "Realized P&L":[self.portfolio.realized_PL], "Unrealized P&L":[self.portfolio.unrealized_PL], "Value": [self.portfolio.value()], })])
 
     def get_value(self, date: datetime):
         matching = self.log_port[self.log_port]

@@ -1,3 +1,5 @@
+import pandas as pd
+
 import Events
 import Execution
 import Data
@@ -68,23 +70,47 @@ class Portfolio:
         self.unrealized_PL = 0
         self.cur_date = datetime.datetime(1900, 1, 1)
 
+
     def set_events(self, events):
         self.events = events
 
+    def calculate_PL(self):
+        days = sorted(list(set([x.date() for x in list(self.portfolio_logger.log_port.Time)])))
+        self.portfolio_logger.log_port['Date'] = [x.date() for x in list(self.portfolio_logger.log_port.Time)]
+        day_df = self.portfolio_logger.log_port[self.portfolio_logger.log_port.Date == days[0]]
+        # formula is end of today minus end of yesterday
+        ret = (day_df.iloc[-1].Value - day_df.iloc[0].Value) / day_df.iloc[0].Value
+        pl_df = pd.DataFrame(
+            {"Time": [x for x in list(self.portfolio_logger.log_port.Time) if x.date() == days[0]], "P_L": ret})
+        for d in days[1:]:
+            day_df = self.portfolio_logger.log_port[self.portfolio_logger.log_port.Date==d]
+            # formula is end of today minus end of yesterday
+            ret = (day_df.iloc[-1].Value - day_df.iloc[0].Value)/day_df.iloc[0].Value
+            tmp = pd.DataFrame(
+            {"Time": [x for x in list(self.portfolio_logger.log_port.Time) if x.date() == d], "P_L": ret})
+            pl_df = pl_df.append(tmp)
+        self.portfolio_logger.log_port["Return"] = list(pl_df["P_L"])
+        self.portfolio_logger.log_port.pop("Date")
+        print()
+
+
     def update(self, dt: datetime.datetime):
         for position in self.current_positions:
-            position.update_price(self.data.get_latest(position.symbol)["Adj Close"].iloc[0])
+            position.update_price(self.data.get_latest(position.symbol)["Close"].iloc[0])
         self.unrealized_PL = sum([position.unrealized_pl for position in self.current_positions])
         # update buying power and cash_in_account
         self.buying_power = sum([position.unrealized_pl for position in self.current_positions])
         self.portfolio_logger.log(dt, self.cur_date)
         # check if new day, if so, update daily return
-        if self.cur_date.weekday() != dt.weekday() and self.cur_date != datetime.datetime(1900, 1, 1):
-            yesterday_df = self.portfolio_logger.log_port[self.portfolio_logger.log_port["Time"] == self.cur_date]
-            daily_return = (self.value() - yesterday_df.iloc[0]["Value"]) / yesterday_df.iloc[0]["Value"]
-            self.portfolio_logger.log_port = self.portfolio_logger.log_port.replace(
-                {"Daily Return": {self.cur_date: daily_return}})
-        self.cur_date = dt
+        # if self.cur_date.weekday() != dt.weekday() and self.cur_date != datetime.datetime(1900, 1, 1):
+        #     yesterday_df = self.portfolio_logger.log_port[self.portfolio_logger.log_port["Time"] == self.cur_date]
+        #     if yesterday_df.iloc[0]["Value"]==0:
+        #         daily_return=0
+        #     else:
+        #         daily_return = (self.value() - yesterday_df.iloc[0]["Value"]) / yesterday_df.iloc[0]["Value"]
+        #     self.portfolio_logger.log_port = self.portfolio_logger.log_port.replace(
+        #         {"Daily Return": {self.cur_date.date(): daily_return}})
+        # self.cur_date = dt
         if self.portfolio_logger.log_port.iloc[0,4] == datetime.datetime(1900, 1, 1):
             self.portfolio_logger.log_port.iloc[0, 4] = 0
 
@@ -108,6 +134,7 @@ class Portfolio:
             pos = [pos for pos in self.current_positions if pos.symbol == fill.ticker][0]
             pos.update_fill(fill)
         # need to update cash and buying power
+        self.buying_power = self.current_cash-self.value()
         self.buying_power = self.value() - sum([pos.cost_basis*pos.quantity for pos in self.current_positions])
         self.realized_PL += pos.realized_pl
         if fill.direction == 1:
@@ -120,6 +147,32 @@ class Portfolio:
         self.fill_logger.log(fill)
 
     def generate_order(self, signal: Events.SignalEvent):
+        try:
+            # update buying power
+            if signal.direction == 1:
+                # buying to close
+                if self.get_position(signal.ticker).quantity < 0:
+                    to_close = "CLOSE"
+                # buying to open
+                else:
+                    to_close = "OPEN"
+                    self.buying_power -= Execution.DummyExecutionHandler().calculate_quantity(self, signal, self.data.get_latest(signal.ticker))
+            else:
+                # selling to open
+                if self.get_position(signal.ticker).quantity <= 0:
+                    to_close = "OPEN"
+                    self.buying_power -= Execution.DummyExecutionHandler().calculate_quantity(self, signal, self.data.get_latest(signal.ticker))
+                # selling to close
+                else:
+                    to_close = "CLOSE"
+        except PositionNotFoundException:
+            if signal.direction==1:
+                # buying to open
+                self.buying_power -= Execution.DummyExecutionHandler().calculate_quantity(self, signal, self.data.get_latest(signal.ticker)["Close"].iloc[0])
+            else:
+                # selling to open
+                # TODO figure out buying power when shorting
+                pass
         Execution.DummyExecutionHandler().execute_order(self, signal, self.events, self.data)
 
     def get_position(self, ticker: str) -> Position:

@@ -18,17 +18,18 @@ class DataHandler(metaclass=ABCMeta):
         self.current_data = {}
         self.continue_backtest = True
         self.data = {}
+        self.has_more_data = {}
 
     @abstractmethod
     def initialize(self):
         raise NotImplementedError("Should implement initialize()")
 
     @abstractmethod
-    def get_latest(self, ticker, N=1):
+    def get_latest(self, symbol, N=1):
         raise NotImplementedError("Should implement get_latest_bar()")
 
     @abstractmethod
-    def get_latest_datetime(self, symbol):
+    def get_latest_datetime(self, symbol, N=1):
         raise NotImplementedError("Should implement get_latest_bar_datetime()")
 
     @abstractmethod
@@ -96,10 +97,10 @@ class CSVDataHandler(DataHandler):
                 data[ticker] = data[ticker][data[ticker].index <= self.end_date]
         return data
 
-    def get_latest(self, ticker, N=1):
-        return self.current_data[ticker].iloc[-N:]
+    def get_latest(self, symbol, N=1):
+        return self.current_data[symbol].iloc[-N:]
 
-    def get_latest_datetime(self, symbol):
+    def get_latest_datetime(self, symbol, N=1):
         return self.current_data[symbol].index[-1]
 
     def update(self, dt, N: int = 1):
@@ -132,10 +133,10 @@ class AlpacaDataHandler(DataHandler):
     def initialize(self):
         pass
 
-    def get_latest(self, ticker, N=1):
+    def get_latest(self, symbol, N=1):
         pass
 
-    def get_latest_datetime(self, symbol):
+    def get_latest_datetime(self, symbol, N=1):
         pass
 
     def update(self, dt, N=1):
